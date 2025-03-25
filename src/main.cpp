@@ -1,3 +1,4 @@
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <stdlib.h>
@@ -5,11 +6,10 @@
 
 #include "bitwise.h"
 #include "usart.h"
-#include "adc.h"
 #include "buzzer.h"
 #include "button.h"
 #include "alarm.h"
-
+#include "map.h"
 #define FCPU 16000000
 // Pinout
 #define PIN_BUZZER_P (PD2) 
@@ -18,10 +18,10 @@
 
 
 // Global Variables
-usart_t debug;
 button_t button;
 buzzer_t buzzer;
 alarm_t alarm;
+usart_t debug;
 int adc = 0;
 
 // Interrupt Service Routines
@@ -30,9 +30,9 @@ ISR(INT1_vect)
   _delay_ms(DEBOUNCE_INTERVAL); // debounce
   button.state = PIND >> BUTTON & 1;        // read the pin state
   if (button.state) {                          // updates on rising edge
-    alarm.enabled = !alarm.enabled;       // Toggle the alarm enable flag
+    alarm.mode = !alarm.mode;       // Toggle the alarm enable flag
     usart_send_string(">case number:");
-    usart_send_num(alarm.enabled, 0, 0);
+    usart_send_num(alarm.mode, 0, 0);
     usart_send_string("\n");
   }
 }
@@ -56,47 +56,40 @@ int main(void)
     create_button(&button);
     usart_send_string("button created\n");
 
-    // Initialise the ADC
-    adc_init();
-
-    // Enable Interrupts
+    bitSet(ADMUX, REFS0);
+    bitSet(ADMUX, MUX1); // 1 
+    bitSet(ADMUX, MUX0); // 1 
+    //since result is 11 therefore channel used is ADC3 since 11 = 3 in binary
+    ADCSRA |= 0b111 < 0;
+    bitSet(ADCSRA, ADIE);
+    bitSet(ADCSRA, ADEN);
     sei();
-
-    // Trigger a start conversion
-    adc_start_conversion();
-    /*while (1){
-        bitSet(ADMUX, REFS0);
-        bitSet(ADMUX, MUX1); // 1 
-        bitSet(ADMUX, MUX0); // 1 
-        //since result is 11 therefore channel used is ADC3 since 11 = 3 in binary
-        ADCSRA |= 0b111 < 0;
-        bitSet(ADCSRA, ADIE);
-        bitSet(ADCSRA, ADEN);
-        sei();
-      
-        bitSet(ADCSRA, ADSC);
-        _delay_ms(10);*/
-      
-        while(1) {
-          adc_start_conversion(); // bitSet(ADCSRA, ADSC);
+  
+    bitSet(ADCSRA, ADSC);
+    _delay_ms(10);
+    while (1){
+          bitSet(ADCSRA, ADSC);
           usart_send_string(">adc:");
           usart_send_num(adc, 4, 0);
-          usart_send_string("\n");
+          usart_send_string(", ");
           _delay_ms(100);
-
-          switch ((int)adc){
-            case 0 ... 400:
-              buzzer_play(&buzzer, 220, alarm.volume, 50);
-              break;
-            case 401 ... 500:
-              buzzer_play(&buzzer, 440, alarm.volume, 50);
-              break;
-            case 501 ... 600:
-              buzzer_play(&buzzer, 880, alarm.volume, 50);
-              break;
+//buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
+      uint8_t volume;
+      if(adc > 450) adc = 450;
+      if(adc < 240) adc = 240;
+      switch (alarm.mode){
+        case 0:
+        volume = map_int(adc, 240, 450, 0, 9);
+        usart_send_string("map val:");
+        usart_send_num(volume, 0, 0);
+        break;
+        case 1:
+        volume = map_int(adc, 240, 450, 9, 0);
+        usart_send_string("map val:");
+        usart_send_num(volume, 0, 0);
+        break;
+      }
+      buzzer_play(&buzzer, 350, volume, 100);
           }
-        }
-            //buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
-
     return 0;
 } // end main
