@@ -5,6 +5,7 @@
 
 #include "bitwise.h"
 #include "usart.h"
+#include "adc.h"
 #include "buzzer.h"
 #include "button.h"
 #include "alarm.h"
@@ -17,6 +18,7 @@
 
 
 // Global Variables
+usart_t debug;
 button_t button;
 buzzer_t buzzer;
 alarm_t alarm;
@@ -40,7 +42,7 @@ ISR(ADC_vect){
 int main(void)
 {
    /////////////////////////// PIN CONFIGURATION ///////////////////////////
-    usart_init(9600);
+    usart_init(&debug, 9600);
     DDRD |= (1 << PIN_BUZZER_P);
     DDRD &= ~((1 << BUTTON) | (1 << BUTTON));
     /////////////////////////// INTERRUPT CONFIGURATION ///////////////////////////
@@ -53,7 +55,16 @@ int main(void)
     usart_send_string("buzzer created\n");
     create_button(&button);
     usart_send_string("button created\n");
-    while (1){
+
+    // Initialise the ADC
+    adc_init();
+
+    // Enable Interrupts
+    sei();
+
+    // Trigger a start conversion
+    adc_start_conversion();
+    /*while (1){
         bitSet(ADMUX, REFS0);
         bitSet(ADMUX, MUX1); // 1 
         bitSet(ADMUX, MUX0); // 1 
@@ -64,27 +75,28 @@ int main(void)
         sei();
       
         bitSet(ADCSRA, ADSC);
-        _delay_ms(10);
+        _delay_ms(10);*/
       
-        while(1){
-          bitSet(ADCSRA, ADSC);
+        while(1) {
+          adc_start_conversion(); // bitSet(ADCSRA, ADSC);
           usart_send_string(">adc:");
           usart_send_num(adc, 4, 0);
           usart_send_string("\n");
           _delay_ms(100);
+
+          switch ((int)adc){
+            case 0 ... 400:
+              buzzer_play(&buzzer, 220, alarm.volume, 50);
+              break;
+            case 401 ... 500:
+              buzzer_play(&buzzer, 440, alarm.volume, 50);
+              break;
+            case 501 ... 600:
+              buzzer_play(&buzzer, 880, alarm.volume, 50);
+              break;
+          }
         }
             //buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
-            switch ((int)adc){
-              case 0 ... 400:
-                buzzer_play(&buzzer, 220, alarm.volume, 50);
-                break;
-              case 401 ... 500:
-                buzzer_play(&buzzer, 440, alarm.volume, 50);
-                break;
-              case 501 ... 600:
-                buzzer_play(&buzzer, 880, alarm.volume, 50);
-                break;
-            }
-          }
+
     return 0;
 } // end main
