@@ -18,7 +18,7 @@ void create_buzzer(buzzer_t *buzzer, uint8_t pin, volatile uint8_t *port)
 /*! @brief Plays a note on a buzzer a set frequency, amplitude and for a set interval
     @param buzzer The buzzer object
     @param freq The frequency of the note
-    @param volume The volume of the note
+    @param volume The volume of the note (0-9)
     @param interval The interval to play the note for
 */
 void buzzer_play(buzzer_t* buzzer, float freq, uint8_t volume, double interval)
