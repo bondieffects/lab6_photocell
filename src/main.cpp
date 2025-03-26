@@ -70,16 +70,18 @@ int main(void)
           usart_send_num(adc, 4, 0);
           usart_send_string("\n");
           _delay_ms(100);
-//buzzer_play(&buzzer, alarm.frequency, alarm.volume, interval);
-uint8_t volume; 
+//buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
+uint64_t volume; //
 switch (alarm.mode){
         case 0:
         //map_int(x,x1,x2,y1,y2)
-        volume = map_int(adc,400,520,0,10);
+        volume = map_increase(adc,400,520,0,10);
+        usart_send_num(volume,0,0);
         usart_send_string("Low to High");
         break;
         case 1:
-        volume = map_int(adc,400,520,10,0);
+        volume = map_decrease(adc,400,520,10,0);
+        usart_send_num(volume,0,0);
        usart_send_string("High to Low");
         break;
       }
