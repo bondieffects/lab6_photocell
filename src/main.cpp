@@ -15,7 +15,7 @@
 #define PIN_BUZZER_P (PD2) 
 #define PORT_BUZZER_P (&PORTD)
 #define BUTTON (PD3)
-
+static const float notes[7] = {523.25, 587.33, 659.26, 698.46, 783.99, 880.00, 987.77};
 
 // Global Variables
 button_t button;
@@ -74,19 +74,23 @@ int main(void)
           usart_send_string("\n");
           _delay_ms(100);
 //buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
-      uint8_t volume;
-      if(adc > 450) adc = 450;
-      if(adc < 240) adc = 240;
-      switch (alarm.mode){
+uint8_t volume;  
+uint8_t volume2;     
+switch (alarm.mode){
         case 0:
-        volume = map_int(adc, 240, 450, 0, 9);
+        volume = map_int(adc,400,520,0,10);
+        volume2 = map_int(adc,520,400,0,50);
+        usart_send_string("Low to High");
         break;
         case 1:
-        volume = map_int(adc, 240, 450, 9, 0);
+        volume = map_int(adc,400,520,10,0);
+        volume2 = map_int(adc,520,400,50,10);
+       usart_send_string("High to Low");
         break;
       }
-      buzzer_play(&buzzer, 350, 0, 100);
+      buzzer_play(&buzzer, 500,volume ,volume2);
           }
     return 0;
 
   }  // end main
+  
