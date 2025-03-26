@@ -52,9 +52,9 @@ int main(void)
     /////////////////////////// CREATE OBJECTS ///////////////////////////
     // Create the buzzer, alarm and button objects
     create_buzzer(&buzzer, PIN_BUZZER_P, PORT_BUZZER_P);
-    usart_send_string("buzzer created\n");
+
     create_button(&button);
-    usart_send_string("button created\n");
+
 
     bitSet(ADMUX, REFS0);
     bitSet(ADMUX, MUX1); // 1 
@@ -71,7 +71,7 @@ int main(void)
           bitSet(ADCSRA, ADSC);
           usart_send_string(">adc:");
           usart_send_num(adc, 4, 0);
-          usart_send_string(", ");
+          usart_send_string("\n");
           _delay_ms(100);
 //buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
       uint8_t volume;
@@ -80,16 +80,13 @@ int main(void)
       switch (alarm.mode){
         case 0:
         volume = map_int(adc, 240, 450, 0, 9);
-        usart_send_string("map val:");
-        usart_send_num(volume, 0, 0);
         break;
         case 1:
         volume = map_int(adc, 240, 450, 9, 0);
-        usart_send_string("map val:");
-        usart_send_num(volume, 0, 0);
         break;
       }
-      buzzer_play(&buzzer, 350, volume, 100);
+      buzzer_play(&buzzer, 350, 0, 100);
           }
     return 0;
-} // end main
+
+  }  // end main
