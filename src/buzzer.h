@@ -19,6 +19,7 @@ typedef struct buzzer_type {
 
 void create_buzzer(buzzer_t *buzzer, uint8_t pin, volatile uint8_t *port);
 void buzzer_play(buzzer_t* buzzer, float freq, uint8_t volume, double interval);
+void buzzer_play_f(buzzer_t* buzzer, float freq, float volume, double interval);
 
 #ifdef __cplusplus
 
