@@ -29,7 +29,7 @@ float linear_map(float x, float in_min, float in_max, float out_min, float out_m
     // Scale y = y1 + k*(x-x1)
     float y = out_min + (k * (x - in_min));
 
-    // Check for overflow
+    // Clamp to output range
     if (y > out_max) y = out_max;
     if (y < out_min) y = out_min;
 
