@@ -9,94 +9,127 @@
 #include "buzzer.h"
 #include "button.h"
 #include "alarm.h"
+#include "utility.h"
 
 #define FCPU 16000000
 // Pinout
-#define PIN_BUZZER_P (PD2) 
+#define PIN_BUZZER_P (PD7) 
 #define PORT_BUZZER_P (&PORTD)
-#define BUTTON (PD3)
 
-
-// Global Variables
+// Objects
 usart_t debug;
 button_t button;
+adc_t adc;
+photocell_t photocell;
 buzzer_t buzzer;
 alarm_t alarm;
-int adc = 0;
+
+// Global variables
+bool tapped;  // button state
+bool mode;    // mode state
+
+inline bool button_tapped(void) {
+  if (tapped) {
+    tapped = 0;       // reset the flag
+    return 1;         // return true
+  } else return 0;         // return false
+}
 
 // Interrupt Service Routines
-ISR(INT1_vect)
+ISR(PCINT2_vect)
 {
   _delay_ms(DEBOUNCE_INTERVAL); // debounce
-  button.state = PIND >> BUTTON & 1;        // read the pin state
-  if (button.state) {                          // updates on rising edge
-    alarm.enabled = !alarm.enabled;       // Toggle the alarm enable flag
-    usart_send_string(">case number:");
-    usart_send_num(alarm.enabled, 0, 0);
-    usart_send_string("\n");
+  button.state = *(button.pinput) >> button.pin & 1;        // read the pin state
+
+  if (button.state) {                         // updates on rising edge
+    button.fell = 0;                          // reset the falling edge flag
+    button.rose = 1;                          // set the rising edge flag
+    tapped = 1;                               // set the tapped flag on the rising edge
+    usart_send_string("Button released\n");
+  } else {
+    button.fell = 1;                          // set the falling edge flag
+    button.rose = 0;                          // reset the rising edge flag
+    usart_send_string("Button pressed\n");
   }
 }
-ISR(ADC_vect){
-  adc = ADC;
+
+ISR(ADC_vect)
+{
+  adc.value = ADC;  // Read the ADC value
 }
+
+/*! @Questions:
+  1. Where the adc channel is x%6, why %6?
+      Because the Arduino has has 5 ADC channels broken out,
+      my student ID last digit is 0, so its simple but if it was > 5,
+      then % would give the remainder to select the appropriate channel.
+  2. 
+
+
+*/
+
 int main(void)
 {
-   /////////////////////////// PIN CONFIGURATION ///////////////////////////
-    usart_init(&debug, 9600);
-    DDRD |= (1 << PIN_BUZZER_P);
-    DDRD &= ~((1 << BUTTON) | (1 << BUTTON));
-    /////////////////////////// INTERRUPT CONFIGURATION ///////////////////////////
-    // Configure External Interrupt for CASE 1 button (INT1)
-    EIMSK |= (1 << INT1);                 // enable INT1
-    EICRA |= (1 << ISC11) | (1 << ISC10); // rising edge
-    /////////////////////////// CREATE OBJECTS ///////////////////////////
-    // Create the buzzer, alarm and button objects
-    create_buzzer(&buzzer, PIN_BUZZER_P, PORT_BUZZER_P);
-    usart_send_string("buzzer created\n");
-    create_button(&button);
-    usart_send_string("button created\n");
+  // Initialise the USART for debugging
+  while(!usart_init(&debug, 9600));
+  usart_send_string("USART initialised\n");
 
-    // Initialise the ADC
-    adc_init();
 
-    // Enable Interrupts
-    sei();
+  // Initialise the button object
+  button_create(&button,
+    &PORTD,
+    &PIND,
+    &DDRD,
+    PD2,
+    18);  // PD2 PCINT18
+  button_interrupt_enable(&button);
+  usart_send_string("Button initialised\n");
 
-    // Trigger a start conversion
+  // Initialise the ADC object
+  adc_init(&adc);
+  usart_send_string("ADC initialised\n");
+  photocell_init(&photocell);
+  usart_send_string("Photocell initialised\n");
+
+  create_buzzer(&buzzer, PIN_BUZZER_P, PORT_BUZZER_P);
+  usart_send_string("Buzzer initialised\n");
+  create_alarm(&alarm);
+  usart_send_string("Alarm initialised\n");
+
+  // Enable Interrupts
+  sei();
+
+
+  while (!photocell_calibrate(&photocell, &adc, button_tapped()));
+  usart_send_string("Photocell calibration complete\n");
+
+  // Enter the main loop
+  while(1) {
+
+    if (button_tapped()) mode = !mode;  // toggle the mode
+
     adc_start_conversion();
-    /*while (1){
-        bitSet(ADMUX, REFS0);
-        bitSet(ADMUX, MUX1); // 1 
-        bitSet(ADMUX, MUX0); // 1 
-        //since result is 11 therefore channel used is ADC3 since 11 = 3 in binary
-        ADCSRA |= 0b111 < 0;
-        bitSet(ADCSRA, ADIE);
-        bitSet(ADCSRA, ADEN);
-        sei();
-      
-        bitSet(ADCSRA, ADSC);
-        _delay_ms(10);*/
-      
-        while(1) {
-          adc_start_conversion(); // bitSet(ADCSRA, ADSC);
-          usart_send_string(">adc:");
-          usart_send_num(adc, 4, 0);
-          usart_send_string("\n");
-          _delay_ms(100);
+    _delay_ms(10); // for stability
 
-          switch ((int)adc){
-            case 0 ... 400:
-              buzzer_play(&buzzer, 220, alarm.volume, 50);
-              break;
-            case 401 ... 500:
-              buzzer_play(&buzzer, 440, alarm.volume, 50);
-              break;
-            case 501 ... 600:
-              buzzer_play(&buzzer, 880, alarm.volume, 50);
-              break;
-          }
-        }
-            //buzzer_play(&buzzer, alarm.frequency, alarm.volume, 100);
+    float volume;
 
-    return 0;
+    switch (mode) {
+      case 0: // When the ambient light is weakest (photocell_min) the buzzer is loudest, when the ambient light is strongest (photocell_max) the buzzer is quietest.
+        volume = linear_map((float)adc.value, (float)photocell.photocell_min, (float)photocell.photocell_max, 1.0f, 0.0f); // Map the ADC value to volume
+        break;
+      case 1: // When the ambient light is weakest (photocell_min) the buzzer is quietest, when the ambient light is strongest (photocell_max) the buzzer is loudest.
+        volume = linear_map((float)adc.value, (float)photocell.photocell_min, (float)photocell.photocell_max, 0.0f, 1.0f); // Map the ADC value to volume
+        break;
+    }
+
+    usart_send_string("ADC: ");
+    usart_send_num(adc.value, 4, 0);
+    usart_send_string(", Volume: ");
+    usart_send_num(volume, 1, 2);
+    usart_send_string("\n\r");
+    buzzer_play_f(&buzzer, alarm.frequency, volume, 100);
+
+  }
+
+  return 0;
 } // end main
