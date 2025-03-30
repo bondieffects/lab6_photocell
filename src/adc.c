@@ -7,12 +7,10 @@
 */
 void adc_init(adc_t *adc)
 {
-    ADMUX |= (  _BV(REFS0) |    // Reference AVCC
-                _BV(MUX1) |     // Select ADC channel 3
-                _BV(MUX0));     // Clear all MUX bits for channel 0
+    ADMUX |= _BV(REFS0);                                // Clear all MUX bits for channel 0
     ADCSRA |= ( _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0) |  // Prescaler of 128 for 125kHz ADC clock
-                _BV(ADIE) |     // Enable interrupts
-                _BV(ADEN));     // Enable the ADC
+                _BV(ADIE) |                             // Enable interrupts
+                _BV(ADEN));                             // Enable the ADC
     // ADCSRB = 0 for free-running mode
 
     adc->value = 0;         // Initialise to 0
