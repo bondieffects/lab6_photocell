@@ -6,9 +6,8 @@
 #include "bitwise.h"
 #include "usart.h"
 #include "adc.h"
-#include "buzzer.h"
 #include "button.h"
-#include "alarm.h"
+#include "buzzer.h"
 #include "utility.h"
 
 #define FCPU 16000000
@@ -22,11 +21,11 @@ button_t button;
 adc_t adc;
 photocell_t photocell;
 buzzer_t buzzer;
-alarm_t alarm;
 
 // Global variables
 bool tapped;  // button state
 bool mode;    // mode state
+float prev_volume;
 
 inline bool button_tapped(void) {
   if (tapped) {
@@ -91,15 +90,13 @@ int main(void)
   photocell_init(&photocell);
   usart_send_string("Photocell initialised\n");
 
-  create_buzzer(&buzzer, PIN_BUZZER_P, PORT_BUZZER_P);
+  create_buzzer(&buzzer, PD7, &PORTD, &DDRD);
   usart_send_string("Buzzer initialised\n");
-  create_alarm(&alarm);
-  usart_send_string("Alarm initialised\n");
 
   // Enable Interrupts
   sei();
 
-
+  // Calibrate the photocell
   while (!photocell_calibrate(&photocell, &adc, button_tapped()));
   usart_send_string("Photocell calibration complete\n");
 
@@ -127,8 +124,13 @@ int main(void)
     usart_send_string(", Volume: ");
     usart_send_num(volume, 1, 2);
     usart_send_string("\n\r");
-    buzzer_play_f(&buzzer, alarm.frequency, volume, 100);
 
+    if (volume != prev_volume) { // Only play the buzzer if the volume has changed
+      prev_volume = volume; // Store the previous volume
+      //cli();
+      buzzer_play_f(&buzzer, 440, volume, 500);
+      //sei();
+    }
   }
 
   return 0;
