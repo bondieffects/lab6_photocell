@@ -24,7 +24,7 @@ buzzer_t buzzer;
 
 // Global variables
 bool tapped;  // button state
-bool mode;    // mode state
+bool mode = 0;    // mode state
 float prev_volume;
 
 inline bool button_tapped(void) {
@@ -62,9 +62,6 @@ ISR(ADC_vect)
       Because the Arduino has has 5 ADC channels broken out,
       my student ID last digit is 0, so its simple but if it was > 5,
       then % would give the remainder to select the appropriate channel.
-  2. 
-
-
 */
 
 int main(void)
@@ -127,9 +124,9 @@ int main(void)
 
     if (volume != prev_volume) { // Only play the buzzer if the volume has changed
       prev_volume = volume; // Store the previous volume
-      //cli();
+      cli();
       buzzer_play_f(&buzzer, 440, volume, 500);
-      //sei();
+      sei();
     }
   }
 
