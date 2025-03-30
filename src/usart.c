@@ -7,8 +7,9 @@
 
 /*! @brief Initializes the USART communication
     @param baud: the baud rate of the communication
+    @return 1 when success
 */
-void usart_init(usart_t* usart, float baud)
+bool usart_init(usart_t* usart, float baud)
 {
     UBRR0 = 103;                // Set baud rate to 9600
     UCSR0B |=   _BV(RXCIE0) |   // enable RX interrupt
@@ -24,6 +25,8 @@ void usart_init(usart_t* usart, float baud)
     // Initialize the usart object
     usart->write = 0;
     usart->read = 0;
+
+    return 1;
 }
 
 /*! @brief Sends a byte over USART

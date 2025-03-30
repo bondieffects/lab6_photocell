@@ -22,7 +22,7 @@ typedef struct {
     bool read_complete;                  // deprecated from non-interrupt example
 } usart_t;
 
-void usart_init(usart_t* usart, float baud);
+bool usart_init(usart_t* usart, float baud);
 void usart_send_byte(const unsigned char data);
 void usart_send_string(const char *pstr);
 void usart_send_num(float num, char num_int, char num_decimal);
