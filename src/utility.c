@@ -22,6 +22,15 @@ float linear_map(float x, float in_min, float in_max, float out_min, float out_m
 
     // Scale y = y1 + k*(x-x1)
     float y = out_min + (k * (x - in_min));
+    
+    // Clamp y to the output range
+    if (out_min < out_max) {
+        if (y < out_min) y = out_min;
+        if (y > out_max) y = out_max;
+    } else {
+        if (y > out_min) y = out_min;
+        if (y < out_max) y = out_max;
+    }
 
     return y;
 }
